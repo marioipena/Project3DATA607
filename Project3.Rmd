@@ -1,0 +1,526 @@
+---
+title: "Data 607 Project 3"
+author: "Ajay Arora and Mario Pena"
+date: "October 20, 2019"
+output: 
+  html_document:
+    toc: yes
+    toc_depth: 2
+    toc_float: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+
+This task, in Data 607 Project 3, attempts to illuminate the necessary set of specific skills required to effectively work as a Data Scientist.  The task is to explore variety of publicly available data to perform analysis to determine which set of skills are ranked the highest.  To narrow the focus of this study, the analysis will be conducted on specific software tools and computing skills.  See Data and Variables of Measurement for additional information. 
+
+# Team Members
+
+Mario Pena    
+
+Ajay Arora
+
+# Initial Communication / Establishing Work Activity
+
+We established communication over #Slack and spoke over the phone to introduce ourselves properly.  Furthermore, we divided the work effort in half.  The work effort consisted of Data Preparation, Data Cleaning, Data Analysis, and Conclusion.
+
+
+# Ongoing Communication / Artifact Location
+
+We both decided to communicate via email and/or #Slack.  In addition, we establihed a Project 3 group folder on GitHub.  
+
+  https://github.com/AjayArora35/Data-607-Group-Project-3
+
+  https://data607fall2019.slack.com/
+  
+# Data
+
+The data was acquired at Kaggle.com.  (https://www.kaggle.com/discdiver/datasets) The specific software tools skills and computing skills were gathered from the following job posting sites, as indicated in the following image. The focus of the study is on specific software tools skills and computing skills described next. 
+
+LinkedIn, Indeed, Monster, SimplyHired, AngelList
+
+# Preparing Environment
+```{r}
+#Loading Libraries
+library(DBI)
+library("knitr")
+library("tidyverse")
+library("tidyr")
+library("dplyr")
+library("stringr")
+library("plotly")
+library("htmlTable")
+library("stringr")
+library("ggplot2")
+library("stats")
+library("scales")
+library("viridis")
+library("wordcloud")
+```
+
+# Variables of Measurement
+### The following software tools skills are analyzed to determine their importance and/or ranking.
+
+
+```{r}
+library(kableExtra)
+softskills = matrix( 
+   c("Python", "SQL", "R", "Java", "Hadoop", "Spark", "Excel", "Tableau", "AWS", "SAS", "Scala", "C++", "Hive", "Javascript", "NoSQL", "Azure", "TensorFlow", "C", "PowerPoint", "Matlab", "Docker", "Git", "C#", "MySQL", "Ruby", "Microsoft", "Office", "SPSS", "MongoDB", "Pig", "Pandas", "Hbase", "Cassandra", "Numpy", "Perl", "Power", "BI", "Node", "PostgreSQL", "D3", "Keras", "PHP", "Redis", "Alteryx", "Jupyter", "Stata", "Caffe", "PyTorch"),  
+   nrow=8,               
+   ncol=6,              
+   byrow = TRUE)         
+
+ssdf <-  as.data.frame(t(softskills))
+ssdf %>% kable() %>%  kable_styling()
+```
+
+### The following computing skills are analyzed to determine their importance and/or ranking.
+
+
+```{r}
+compskills <- matrix(c("Machine Learning", "Analysis", "Statistics", "Computer Science", "Communication", "Mathematics", "Visualization", "AI Composite", "Deep Learning", "NLP Composite", "Software Development", "Neural Networks", "Data Engineering", "Project Management", "Software Engineering"),
+  nrow=5,               
+  ncol=3,              
+  byrow = TRUE)
+
+ssdf <-  as.data.frame(t(compskills))
+ssdf %>% kable() %>%  kable_styling()
+
+```
+
+
+# Data Preparation
+
+## Read Software skills and Computing skills data from GitHub
+
+
+```{r}
+#data <- read.csv(file="https://raw.githubusercontent.com/AjayArora35/Data-607-Group-Project-3/master/Data%20Science%20Software%20Skills.csv", header=TRUE, stringsAsFactors = FALSE)
+
+#data2C <- read.csv(file="https://raw.githubusercontent.com/AjayArora35/Data-607-Group-Project-3/master/Data%20Science%20Computing%20Skills.csv", header=TRUE, stringsAsFactors = FALSE)
+
+cn <- dbConnect(drv      = RMySQL::MySQL(), 
+                username = "admin", 
+                password = "Data__607", 
+                host     = "database-1.cxdov2mcmzlo.us-east-2.rds.amazonaws.com", 
+                port     = 3306, 
+                dbname   = "data607project3")
+
+
+data <- dbGetQuery(cn, "SELECT * FROM softwareskills")
+
+data2C <- dbGetQuery(cn, "SELECT * FROM computingskills")
+
+data3E<- dbGetQuery(cn, "SELECT * FROM educationlevels")
+
+```
+
+### Sample data from Software Skills and Computing Skills
+```{r}
+head(data) %>% kable() %>%  kable_styling()
+
+head(data2C) %>% kable() %>%  kable_styling()
+
+```
+# Data Cleaning 
+## Remove commas, and fill in 0's for missing values
+```{r}
+
+
+data$LinkedIn <- as.numeric(gsub(",","",data$LinkedIn))
+data$Indeed <- as.numeric(gsub(",","",data$Indeed))
+data$Monster <- as.numeric(gsub(",","",data$Monster))
+data$SimplyHired <- as.numeric(gsub(",","",data$SimplyHired))
+data$AngelList <- as.numeric(gsub(",","",data$AngelList))
+data[is.na(data)] <- 0
+
+data2C$LinkedIn <- as.numeric(gsub(",","", data2C$LinkedIn))
+data2C$Indeed <- as.numeric(gsub(",","", data2C$Indeed))
+data2C$SimplyHired <- as.numeric(gsub(",","", data2C$SimplyHired))
+data2C$Monster <- as.numeric(gsub(",","", data2C$Monster))
+data2C[is.na(data2C)] <- 0
+
+
+head(data) %>% kable() %>%  kable_styling()
+
+head(data2C) %>% kable() %>%  kable_styling()
+
+```
+
+# Analysis -- Software Tools Skills
+### Software Tools Respondents Distribution
+```{r}
+
+stdist <- data %>% 
+  mutate(LinkedInTotal = sum(data$LinkedIn),
+         IndeedTotal = sum(data$Indeed),
+         MonsterTotal = sum(data$Monster),
+         SimplyHiredTotal = sum(data$SimplyHired),
+         AngelListTotal = sum(data$AngelList)
+         )
+
+stvector <- c(stdist[1,'LinkedInTotal'], stdist[1,'IndeedTotal'], stdist[1,'MonsterTotal'], stdist[1,'SimplyHiredTotal'], stdist[1,'AngelListTotal'])
+
+barplot(stvector,
+main = "Software Tools Respondents Distribution",
+xlab = "Posting Sites",
+ylab = "Respondents",
+names.arg = c("LinkedIn", "Indeed", "Monster", "SimplyHired", "AngelList"),
+col = viridis(5),
+horiz = FALSE)
+
+```
+
+### LinkedIn Software Tool Favorability Ranking
+```{r}
+data2 <- data %>% 
+  mutate(total = sum(data$LinkedIn),
+         Favorability = percent(data$LinkedIn/total*100, accuracy = .01, scale=1))
+
+data2 <- data2[order(-data2$LinkedIn),]
+
+data2$Ranked <- 1:length(data2$LinkedIn)
+
+         
+select (data2, Keyword, LinkedIn, Favorability, Ranked)
+
+```
+
+### Indeed Software Tool Favorability Ranking
+```{r}
+data3 <- data %>% 
+  mutate(total = sum(data$Indeed),
+         Favorability = percent(data$Indeed/total*100, accuracy = .01, scale=1))
+
+data3 <- data3[order(-data3$Indeed),]
+
+data3$Ranked <- 1:length(data3$Indeed)
+
+
+select (data3, Keyword, Indeed, Favorability, Ranked)
+```
+
+### Monster Software Tool Favorability Ranking
+```{r}
+data4 <- data %>% 
+  mutate(total = sum(data$Monster),
+         Favorability = percent(data$Monster/total*100, accuracy = .01, scale=1))
+
+data4 <- data4[order(-data4$Monster),]
+
+data4$Ranked <- 1:length(data4$Monster)
+
+select (data4, Keyword, Monster, Favorability, Ranked)
+```
+
+
+### SimplyHired Software Tool Favorability Ranking
+```{r}
+data5 <- data %>% 
+  mutate(total = sum(data$SimplyHired),
+         Favorability = percent(data$SimplyHired/total*100, accuracy = .01, scale=1))
+
+data5 <- data5[order(-data5$SimplyHired),]
+
+data5$Ranked <- 1:length(data5$SimplyHired)
+
+
+select (data5, Keyword, SimplyHired, Favorability, Ranked)
+```
+
+### AngelList Software Tool Favorability Ranking
+```{r}
+data6 <- data %>% 
+  mutate(total = sum(data$AngelList),
+         Favorability = percent(data$AngelList/total*100, accuracy = .01, scale=1))
+
+
+data6 <- data6[order(-data6$AngelList),]
+
+data6$Ranked <- 1:length(data6$AngelList)
+
+
+select (data6, Keyword, AngelList, Favorability, Ranked)
+```
+
+### What is the most relevant software tool identified by LinkedIn?
+```{r}
+grid1 <- ggplot(data = data,aes(x=reorder(data$Keyword, data$LinkedIn), y=data$LinkedIn, fill = viridis(46),)) + 
+  theme(legend.position = "none", axis.text.y = element_text(size=6), axis.text.x = element_text(size=7)) +
+  geom_bar(stat = "identity") + 
+  geom_label(aes(label=data$LinkedIn), position = position_dodge(width = 0.5), size = 2.4,   label.padding = unit(0.04, "lines"), label.size = 0.15, inherit.aes = TRUE)+
+  labs(title = "LinkedIn", x = "Software Tools", y = "Tool Relevance")+
+  coord_flip()
+grid1
+```
+
+### What is the most relevant software tool identified by Indeed?
+```{r}
+grid2 <- ggplot(data = data,aes(x=reorder(data$Keyword, data$Indeed), y=data$Indeed, fill = magma(46),)) + 
+  theme(legend.position = "none", axis.text.y = element_text(size=6), axis.text.x = element_text(size=7)) +
+  geom_bar(stat = "identity") + 
+  geom_label(aes(label=data$Indeed), position = position_dodge(width = 0.5), size = 2.4,   label.padding = unit(0.04, "lines"), label.size = 0.15, inherit.aes = TRUE)+
+  labs(title = "Indeed", x = "Software Tools", y = "Tool Relevance")+
+  coord_flip()
+grid2
+```
+
+### What is the most relevant software tool identified by Monster?
+```{r}
+grid3 <- ggplot(data = data,aes(x=reorder(data$Keyword, data$Monster), y=data$Monster, fill = data$Keyword,)) +
+  theme(legend.position = "none", axis.text.y = element_text(size=6), axis.text.x = element_text(size=7)) +
+  geom_bar(stat = "identity") + 
+  geom_label(aes(label=data$Monster), position = position_dodge(width = 0.5), size = 2.4, label.padding = unit(0.04, "lines"), label.size = 0.15, inherit.aes = TRUE)+
+  labs(title = "Monster", x = "Software Tools", y = "Tool Relevance")+
+  coord_flip()
+grid3
+```
+
+### What is the most relevant software tool identified by SimplyHired?
+```{r}
+grid4 <- ggplot(data = data,aes(x=reorder(data$Keyword, data$SimplyHired), y=data$SimplyHired, fill = plasma(46),)) +
+  theme(legend.position = "none", axis.text.y = element_text(size=6), axis.text.x = element_text(size=7)) +
+  geom_bar(stat = "identity") + 
+  geom_label(aes(label=data$SimplyHired), position = position_dodge(width = 0.5), size = 2.4,   label.padding = unit(0.04, "lines"), label.size = 0.15, inherit.aes = TRUE)+
+  labs(title = "SimplyHired", x = "Software Tools", y = "Tool Relevance")+
+  coord_flip()
+grid4
+```
+
+### What is the most relevant software tool identified by AngelList?
+```{r}
+grid5 <- ggplot(data = data,aes(x=reorder(data$Keyword, data$AngelList), y=data$AngelList, fill = viridis(46),)) +
+  theme(legend.position = "none", axis.text.y = element_text(size=6), axis.text.x = element_text(size=7)) +
+  geom_bar(stat = "identity") + 
+  geom_label(aes(label=data$AngelList), position = position_dodge(width = 0.5), size = 2.4, label.padding = unit(0.04, "lines"), label.size = 0.15, inherit.aes = TRUE)+
+  labs(title = "AngelList", x = "Software Tools", y = "Tool Relevance")+
+  coord_flip()
+grid5
+```
+
+
+```{r}
+require(gridExtra)
+grid.arrange(grid1, grid2, ncol=2)
+grid.arrange(grid3, grid4, ncol=2)
+grid.arrange(grid5, ncol=2)
+```
+
+
+
+
+# Analysis -- Computing Skills
+
+*Please note that NLP and AI composite were removed from the graphs as we believe they are categorical variables used to describe other skills in the dataset, thus they contain 0 total observations.*
+
+### Computing Skills Respondents Distribution
+```{r}
+
+csdist <- data2C %>% 
+  mutate(LinkedInTotal = sum(data$LinkedIn),
+         IndeedTotal = sum(data$Indeed),
+         MonsterTotal = sum(data$Monster),
+         SimplyHiredTotal = sum(data$SimplyHired)
+         )
+
+csvector <- c(csdist[1,'LinkedInTotal'], csdist[1,'IndeedTotal'], csdist[1,'MonsterTotal'], csdist[1,'SimplyHiredTotal'])
+
+barplot(csvector,
+main = "Computing Skills Respondents Distribution",
+xlab = "Posting Sites",
+ylab = "Respondents",
+names.arg = c("LinkedIn", "Indeed", "Monster", "SimplyHired"),
+col = plasma(4),
+horiz = FALSE)
+
+```
+
+
+### LinkedIn Computing Skill Favorability Ranking
+```{r}
+data22 <- data2C %>% 
+  mutate(total = sum(data2C$LinkedIn),
+  Favorability = percent(data2C$LinkedIn/total*100, accuracy = .01, scale=1)) %>% filter (Keyword != "NLP composite" & Keyword != "AI composite")
+
+
+data22 <- data22[order(-data22$LinkedIn),]
+
+data22$Ranked <- 1:length(data22$LinkedIn)
+
+
+select (data22, Keyword, LinkedIn, Favorability, Ranked)
+
+```
+
+### Indeed Computing Skill Favorability Ranking
+```{r}
+data23 <- data2C %>% 
+   mutate(total = sum(data2C$Indeed),
+   Favorability = percent(data2C$Indeed/total*100, accuracy = .01, scale=1)) %>% filter (Keyword != "NLP composite" & Keyword != "AI composite")
+
+data23 <- data23[order(-data23$Indeed),]
+
+data23$Ranked <- 1:length(data23$Indeed)
+
+
+select (data23, Keyword, Indeed, Favorability, Ranked)
+```
+
+### Monster Computing Skill Favorability Ranking
+```{r}
+data24 <- data2C %>% 
+  mutate(total = sum(data2C$Monster),
+  Favorability = percent(data2C$Monster/total*100, accuracy = .01, scale=1)) %>% filter (Keyword != "NLP composite" & Keyword != "AI composite")
+
+data24 <- data24[order(-data24$Monster),]
+
+data24$Ranked <- 1:length(data24$Monster)
+
+select (data24, Keyword, Monster, Favorability, Ranked)
+```
+
+
+### SimplyHired Computing Skill Favorability Ranking
+```{r}
+data25 <- data2C %>% 
+  mutate(total = sum(data2C$SimplyHired),
+  Favorability = percent(data2C$SimplyHired/total*100, accuracy = .01, scale=1)) %>% filter (Keyword != "NLP composite" & Keyword != "AI composite")
+
+data25 <- data25[order(-data25$SimplyHired),]
+
+data25$Ranked <- 1:length(data25$SimplyHired)
+
+select (data25, Keyword, SimplyHired, Favorability, Ranked)
+```
+
+
+### What is the most relevant Computing Skill identified by LinkedIn?
+```{r}
+grid21 <- ggplot(data = data22,aes(x=reorder(Keyword, LinkedIn), y=LinkedIn, fill = viridis(13),)) +theme(legend.position = "none", axis.text.y = element_text(size=8), axis.text.x = element_text(size=8)) +
+  geom_bar(stat = "identity") + 
+  geom_label(aes(label=data22$LinkedIn), position = position_dodge(width = 0.5), size = 3, label.padding = unit(0.3, "lines"), label.size = 0.15, inherit.aes = TRUE)+
+  labs(title = "LinkedIn", x = "Computing Skills", y = "Skill Relevance")+
+  coord_flip()
+grid21
+```
+
+### What is the most relevant Computing Skill identified by Indeed?
+```{r}
+grid22 <- ggplot(data = data23,aes(x=reorder(Keyword, Indeed), y=Indeed, fill = magma(13),)) +theme(legend.position = "none", axis.text.y = element_text(size=8), axis.text.x = element_text(size=8)) +
+  geom_bar(stat = "identity") + 
+  geom_label(aes(label=data23$Indeed), position = position_dodge(width = 0.5), size = 3, label.padding = unit(0.3, "lines"), label.size = 0.15, inherit.aes = TRUE)+
+  labs(title = "Indeed", x = "Computing Skills", y = "Skill Relevance")+
+  coord_flip()
+grid22
+```
+
+### What is the most relevant Computing Skill identified by Monster?
+```{r}
+grid23 <- ggplot(data = data24,aes(x=reorder(Keyword, Monster), y=Monster, fill = Keyword,)) +theme(legend.position = "none", axis.text.y = element_text(size=8), axis.text.x = element_text(size=8)) +
+  geom_bar(stat = "identity") + 
+  geom_label(aes(label=data24$Monster), position = position_dodge(width = 0.5), size = 3, label.padding = unit(0.3, "lines"), label.size = 0.15, inherit.aes = TRUE)+
+  labs(title = "Monster", x = "Computing Skills", y = "Skill Relevance")+
+  coord_flip()
+grid23
+```
+
+
+### What is the most relevant Computing Skill identified by SimplyHired?
+```{r}
+grid24 <- ggplot(data = data25,aes(x=reorder(Keyword, SimplyHired), y=SimplyHired, fill = plasma(13),)) +theme(legend.position = "none", axis.text.y = element_text(size=8), axis.text.x = element_text(size=8)) +
+  geom_bar(stat = "identity") + 
+  geom_label(aes(label=data25$SimplyHired), position = position_dodge(width = 0.5), size = 3, label.padding = unit(0.3, "lines"), label.size = 0.15, inherit.aes = TRUE)+
+  labs(title = "SimplyHired", x = "Computing Skills", y = "Skill Relevance")+
+  coord_flip()
+grid24
+```
+
+
+
+
+```{r}
+require(gridExtra)
+grid.arrange(grid21, grid22, grid23, grid24,  ncol=2)
+```
+
+# Aggregations
+
+### What is the most relevant software tool identified across all job search sites?
+
+
+```{r}
+Total_soft <- data %>% mutate(Total_Count = LinkedIn + Indeed + Monster + SimplyHired + AngelList)
+
+plot_soft <- ggplot(data = Total_soft,aes(x=reorder(Total_soft$Keyword, Total_soft$Total_Count), y=Total_soft$Total_Count, fill = viridis(46),)) + 
+  theme(legend.position = "none", axis.text.y = element_text(size=6), axis.text.x = element_text(size=7)) +
+  geom_bar(stat = "identity") + 
+  geom_label(aes(label=Total_soft$Total_Count), position = position_dodge(width = 0.5), size = 2.4,   label.padding = unit(0.04, "lines"), label.size = 0.15, inherit.aes = TRUE)+
+  labs(title = "Most Relevant Software Tools Across All Sites ", x = "Software Tools", y = "Tool Relevance")+
+  coord_flip()
+  
+
+plot_soft     
+
+set.seed(2)
+wordcloud(words = Total_soft$Keyword, freq = Total_soft$Total_Count,
+          max.words=200, random.order=FALSE, rot.per=0.35, 
+          colors=brewer.pal(7, "Dark2"))
+```
+
+### What is the most relevant Computing Skill identified across all job search sites?
+
+
+```{r}
+Total_comp <- data2C %>% mutate(Total_Count = LinkedIn + Indeed + Monster + SimplyHired) %>% filter (Keyword != "NLP composite" & Keyword != "AI composite")
+
+plot_comp <- ggplot(data = Total_comp,aes(x=reorder(Total_comp$Keyword, Total_comp$Total_Count), y=Total_comp$Total_Count, fill = magma(13),)) + 
+  theme(legend.position = "none", axis.text.y = element_text(size=8), axis.text.x = element_text(size=8)) +
+  geom_bar(stat = "identity") + 
+  geom_label(aes(label=Total_comp$Total_Count), position = position_dodge(width = 0.5), size = 3,   label.padding = unit(0.3, "lines"), label.size = 0.15, inherit.aes = TRUE)+
+  labs(title = "Most Relevant Computing Skills Across All Sites ", x = "Computing Skills", y = "Skill Relevance")+
+  coord_flip()
+
+plot_comp
+
+
+#Substitute "computer science" with "cp" and "machine learning" with "ml" so they fit in the wordcloud below
+
+Total_comp$Keyword <- sub("^computer science$", "cp", Total_comp$Keyword)
+Total_comp$Keyword <- sub("^machine learning$", "ml", Total_comp$Keyword)
+
+set.seed(1)                          
+wordcloud(words = Total_comp$Keyword, freq = Total_comp$Total_Count,
+          max.words=200, random.order=FALSE, rot.per=0.30, 
+          colors=brewer.pal(7, "Dark2"))
+```
+
+# Additional Findings
+
+We would also like to make note of a small dataset containing the education level that respondents identified as being essential for a data scientist.
+
+*Please also note that we believe there may be an anomaly in the dataset. Monster posting site contains 12,086 observations for Kaggle, which is a significant count more than any other in the dataset. Additionally, we are not very certain that Kaggle should be considered an education level but we have kept it as it was mentioned across all job posting sites.* 
+
+```{r}
+
+data3E$LinkedIn <- as.numeric(gsub(",","",data3E$LinkedIn))
+data3E$Indeed <- as.numeric(gsub(",","",data3E$Indeed))
+data3E$Monster <- as.numeric(gsub(",","",data3E$Monster))
+data3E$SimplyHired <- as.numeric(gsub(",","",data3E$SimplyHired))
+data3E$AngelList <- as.numeric(gsub(",","",data3E$AngelList))
+data3E[is.na(data3E)] <- 0
+
+Total_edu <- data3E %>% mutate(Total_Count = LinkedIn + Indeed + Monster + SimplyHired + AngelList)
+
+ggplot(Total_edu, aes(x=reorder(Keyword, Total_Count), Total_Count)) + geom_bar(stat="identity", width = 0.5, fill="tomato2") + labs(x = "Education Level", y="Education Relevance", title="Most Relevant Education Level in Data Science")
+
+```
+
+
+# Conclusions
+
+Although this study is not based on a scientific inquiry with control mechanisms in place, the anecdotal evidence cannot be overlooked regarding the current trending of data science software and computing skills.  Before we discuss any of the findings, it is worth bearing in mind, the unequal respondent's distribution among the different job posting sites.  For example, LinkedIn enjoys much larger audience than AngelList.  These unequal distributions are worth keeping in mind as we discuss some final numbers.  Furthermore, it is worth keeping in mind, whether mechanisms were in place to prevent a user respondent from submitting more than once per question.  
+
+LinkedIn, Indeed, SimplyHired, and AngelList, the computing practitioners' respondents, chose Python as their most relevant Data Science software tools skills.  However, there was one exception with Monster.  The participants at Monster chose SQL as the top software tool skill.  The computing skills outcome favored "analysis" by Indeed, Monster, and SimplyHired, as the most relevant computing skill followed by LinkedIn choosing "machine learning".  
